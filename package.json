@@ -1,0 +1,12 @@
+{
+  "name": "trits-foo-tangle",
+  "description": "Devel REST service for keeping track of transactions and balances in CouchDB instead of the Tangle",
+  "repository": "git://github.com/kubrt-d/trits-foo-tangle.git",
+  "version": "0.0.0",
+  "license": "MIT",
+  "main": "lib/trits-foo-tangle.js",
+  "dependencies": {},
+  "devDependencies": {
+    "mocha": "2.x"
+  }
+}
