@@ -4,9 +4,19 @@
   "repository": "git://github.com/kubrt-d/trits-foo-tangle.git",
   "version": "0.0.0",
   "license": "MIT",
-  "main": "lib/trits-foo-tangle.js",
-  "dependencies": {},
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha"
+  },
+  "dependencies": {
+    "body-parser": "~1.0.1",
+    "express": "~4.0.0",
+    "minimist": "^1.2.0",
+    "moment": "^2.19.1",
+    "nano": "~6.4.2"
+  },
   "devDependencies": {
-    "mocha": "2.x"
+    "mocha": "2.x",
+    "request": "^2.83.0"
   }
 }
