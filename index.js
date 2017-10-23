@@ -7,11 +7,27 @@ const TRITS_TEST_DB_NAME = 'foongle_test_delete_me';
 const TRITS_DEPOSIT_ADDRESS  = 'DEPOSITXXX99999999999999999999999999999999999999999999999999999999999999999999999';
 const TRITS_WITHDRAWAL_ADDRESS  = 'WIDTHDRAWALXXX9999999999999999999999999999999999999999999999999999999999999999999';
 
+
 var express = require('express');
 var app = express();
 var minimist = require('minimist');
 var bodyParser = require('body-parser');
 var moment = require('moment');
+
+var design = {
+    "_id": "_design/search",
+    "language": "javascript",
+    "views": {
+        "to": {
+            "map": "function(doc) { if (doc.to) {emit(doc.to,doc)}}"
+        },
+        "sum": {
+            "map": "function(doc) { if (doc.to) {emit(doc.to,doc.value)}}",
+            "reduce": "_sum"
+        }
+    }
+};
+
 
 // Process the command line arguments
 var argv = minimist(process.argv.slice(2), {
@@ -67,20 +83,6 @@ nano.db.get(db_name, function(err, body) {
     if (err) {
         nano.db.create(db_name);
         var foongle = nano.db.use(db_name);
-        // Insert the design view
-        var design = {
-            "_id": "_design/search",
-            "language": "javascript",
-            "views": {
-                "to": {
-                    "map": "function(doc) { if (doc.to) {emit(doc.to,doc)}}"
-                },
-                "sum": {
-                    "map": "function(doc) { if (doc.to) {emit(doc.to,doc.value)}}",
-                    "reduce": "_sum"
-                }
-            }
-        };
         foongle.insert(design, function (err, body) {
             if (err)
                 console.log(err)
@@ -113,6 +115,16 @@ if (test_mode) {
     router.get('/test', function(req, res) {
         res.json({ message: 'SUCCESS: TEST OK' });
     });
+    router.get('/wipe', function(req, res) {
+        nano.db.destroy(db_name,function() {
+            nano.db.create(db_name, function (){
+                var foongle = nano.db.use(db_name);
+                foongle.insert(design, function (err, body) {
+                    res.json({ message: 'SUCCESS: DATABASE WIPED' });
+                });
+            });
+        });
+    });
 }
 
 // Transfer route - Transfer coins from one address to another
@@ -130,44 +142,50 @@ router.route('/transfer').post(function(req, res) {
         // Deposit - From deposit to someone
         if (from == TRITS_DEPOSIT_ADDRESS) {
             foongle.insert({timestamp: timestamp, from: TRITS_DEPOSIT_ADDRESS, to: to, value: value});
-            res.json({ message: 'OK' });
+            res.json({ message: 'SUCCESS: DEPOSIT OK' });
             return;
         }
 
-        // TODO: Check the balance first
+        // For any other transactions apart from deposit, check the senders balance first
+        checkFoongleBalance(from, function (balance) {
 
-        // Withdrawal - From someone to withdrawal
+            // Withdrawal - From someone to withdrawal (internally written other way around with a negative value
+            if (balance >= value ) {
 
-        if (to == TRITS_WITHDRAWAL_ADDRESS) {
-            foongle.insert({timestamp: timestamp, from: TRITS_WITHDRAWAL_ADDRESS, to: to, value: -value});
-            res.json({ message: 'OK' });
-            return;
-        }
-
-        // Other transfers
-
-        foongle.view('search', 'to', {key : to}, function(err, body) {
-            if (!err) {
-                // We only allow transfers to previously registered addresses unless it's a deposit
-                // Players register by depositing
-                if (body.rows.length > 0 ) {
-                    foongle.insert({timestamp: timestamp, from: from, to: to, value: value}, function (err, body) {
-                        if (!err)
-                            console.log(body)
-                    });
-                    foongle.insert({timestamp: timestamp, from: to, to: from, value: -value}, function (err, body) {
-                        if (!err)
-                            console.log(body)
-                    });
-                    res.json({ message: 'OK' });
-                } else {
-                    res.json({message: 'Can only transfer to registered addresses !'});
+                if (to == TRITS_WITHDRAWAL_ADDRESS) {
+                    foongle.insert({timestamp: timestamp, from: TRITS_WITHDRAWAL_ADDRESS, to: from, value: -value});
+                    res.json({ message: 'SUCCESS: WITHDRAWAL OK' });
+                    return;
                 }
+
+                // Other transfers
+
+                foongle.view('search', 'to', {key : to}, function(err, body) {
+                    if (!err) {
+                        // We only allow transfers to previously registered addresses unless it's a deposit
+                        // Players register by depositing
+                        if (body.rows.length > 0 ) {
+                            foongle.insert({timestamp: timestamp, from: from, to: to, value: value}, function (err, body) {
+                                if (!err)
+                                    console.log(body)
+                            });
+                            foongle.insert({timestamp: timestamp, from: to, to: from, value: -value}, function (err, body) {
+                                if (!err)
+                                    console.log(body)
+                            });
+                            res.json({ message: 'SUCCESS: Transaction registered' });
+                        } else {
+                            res.json({message: 'ERROR: UNSEEN ADDRESS'});
+                        }
+                    }
+                });
+            } else { // Insufficient funds
+                res.json({message: 'ERROR: INSUFFICIENT BALANCE'});
             }
         });
     }
     else {
-        res.json({ message: 'ERROR: Invalid format!' });
+        res.json({ message: 'ERROR: INVALID FORMAT' });
     }
 });
 
@@ -184,15 +202,26 @@ router.route('/to/:address').get(function(req, res) {
 
 router.route('/balance/:address').get(function(req, res) {
     var address = req.params.address;
+    checkFoongleBalance(address,function(balance){
+        if (balance >= 0) {
+            res.json({balance: balance});
+        } else {
+            res.json({balance: false});
+        }
+    })
+});
+
+var checkFoongleBalance = function (address, callback) {
     if (isAddress (address) ) {
-        foongle.view('search', 'to', {key : req.params.address}, function(err, body) {
-            if (!err) {
-                res.json(body);
+        foongle.view('search', 'sum', {key : address}, function(err, body) {
+            if (!err && body.hasOwnProperty('rows') && body.rows.length > 0 ) {
+                callback(body.rows[0].value);
+            } else {
+                callback(false);
             }
         });
     }
-});
-
+}
 
 //process.exit(0);
 

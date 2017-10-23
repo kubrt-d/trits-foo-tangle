@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "mocha": "2.x",
-    "request": "^2.83.0"
+    "request": "^2.83.0",
+    "sync-request": "^4.1.0"
   }
 }
