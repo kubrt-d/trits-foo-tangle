@@ -138,12 +138,16 @@ router.route('/transfer').post(function(req, res) {
 
 
     if (isAddress(from) && isAddress(to) && isValue(value) && value > 0 ) {
-
+        //console.log('Request transfer from: ' + from + ' to ' + to + ' , value: ' + value);
         // Deposit - From deposit to someone
         if (from == TRITS_DEPOSIT_ADDRESS) {
-            foongle.insert({timestamp: timestamp, from: TRITS_DEPOSIT_ADDRESS, to: to, value: value});
-            res.json({ message: 'SUCCESS: DEPOSIT OK' });
-            return;
+            foongle.insert({timestamp: timestamp, from: TRITS_DEPOSIT_ADDRESS, to: to, value: value}, function (err,body,header) {
+                if (!err) {
+                    res.json({ message: 'SUCCESS: DEPOSIT OK' });
+                } else {
+                    res.json({ message: 'ERROR: Error storing in CouchDB' });
+                }
+            });
         }
 
         // For any other transactions apart from deposit, check the senders balance first
@@ -153,8 +157,14 @@ router.route('/transfer').post(function(req, res) {
             if (balance >= value ) {
 
                 if (to == TRITS_WITHDRAWAL_ADDRESS) {
-                    foongle.insert({timestamp: timestamp, from: TRITS_WITHDRAWAL_ADDRESS, to: from, value: -value});
-                    res.json({ message: 'SUCCESS: WITHDRAWAL OK' });
+                    foongle.insert({timestamp: timestamp, from: TRITS_WITHDRAWAL_ADDRESS, to: from, value: -value}, function (err,body,header) {
+                        if (!err) {
+                            res.json({ message: 'SUCCESS: WITHDRAWAL OK' });
+                        } else {
+                            res.json({ message: 'ERROR: Error storing in CouchDB' });
+                        }
+                    });
+
                     return;
                 }
 
@@ -165,15 +175,20 @@ router.route('/transfer').post(function(req, res) {
                         // We only allow transfers to previously registered addresses unless it's a deposit
                         // Players register by depositing
                         if (body.rows.length > 0 ) {
+
                             foongle.insert({timestamp: timestamp, from: from, to: to, value: value}, function (err, body) {
-                                if (!err)
-                                    console.log(body)
+                                if (!err) {
+                                    foongle.insert({timestamp: timestamp, from: to, to: from, value: -value}, function (err, body) {
+                                        if (!err){
+                                            res.json({ message: 'SUCCESS: Transaction registered' });
+                                        } else {
+                                            res.json({ message: 'ERROR: Error storing in CouchDB' });
+                                        }
+                                    });
+                                } else {
+                                    res.json({ message: 'ERROR: Error storing in CouchDB' });
+                                }
                             });
-                            foongle.insert({timestamp: timestamp, from: to, to: from, value: -value}, function (err, body) {
-                                if (!err)
-                                    console.log(body)
-                            });
-                            res.json({ message: 'SUCCESS: Transaction registered' });
                         } else {
                             res.json({message: 'ERROR: UNSEEN ADDRESS'});
                         }
@@ -201,7 +216,9 @@ router.route('/to/:address').get(function(req, res) {
 });
 
 router.route('/balance/:address').get(function(req, res) {
+
     var address = req.params.address;
+    //console.log('Request balance check for: ' + address);
     checkFoongleBalance(address,function(balance){
         if (balance >= 0) {
             res.json({balance: balance});
