@@ -13,6 +13,8 @@ var app = express();
 var minimist = require('minimist');
 var bodyParser = require('body-parser');
 var moment = require('moment');
+var generateSeed = require ('iota-seed-generator');
+
 
 var design = {
     "_id": "_design/search",
@@ -27,6 +29,16 @@ var design = {
         }
     }
 };
+
+async function seed(cb) {
+    try {
+        var seed = await generateSeed();
+        cb(seed);
+    }
+    catch (err) {
+        cb(null);
+    }
+}
 
 
 // Process the command line arguments
@@ -204,6 +216,8 @@ router.route('/transfer').post(function(req, res) {
     }
 });
 
+// List all transaction to the  address
+
 router.route('/to/:address').get(function(req, res) {
     var address = req.params.address;
     if (isAddress (address) ) {
@@ -214,6 +228,8 @@ router.route('/to/:address').get(function(req, res) {
         });
     }
 });
+
+// Get balance for address
 
 router.route('/balance/:address').get(function(req, res) {
 
@@ -226,6 +242,18 @@ router.route('/balance/:address').get(function(req, res) {
             res.json({balance: false});
         }
     })
+});
+
+// Generate random address
+
+router.route('/random').get(function(req, res) {
+    seed(function (new_address){
+        if (new_address != null){
+            res.json({address: new_address});
+        } else {
+            res.json({address: false});
+        }
+    });
 });
 
 var checkFoongleBalance = function (address, callback) {

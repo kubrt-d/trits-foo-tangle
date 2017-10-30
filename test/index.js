@@ -42,6 +42,16 @@ describe('Trist Foo Tangle', function(){
             });
         });
     });
+
+    describe('Generate Random Address', function(){
+        it('Should return an address', function (done) {
+            request.get(api_root + '/random', { json: true } , function (err, res, body) {
+                assert.notEqual(false,body.address);
+                done();
+            });
+        });
+    });
+
     describe('Deposit and withdrawal', function(){
         it('Should return SUCCESS: DEPOSIT OK and then SUCCESS: WITHDRAWAL OK', function (done) {
             var options = {
