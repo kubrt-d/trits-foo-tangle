@@ -12,7 +12,7 @@ const TRITS_UNSEEN      = 'UNSEEN99999999999999999999999999999999999999999999999
 
 var assert = require('assert');
 
-var port = 56241;
+var port = 57241;
 var host = "127.0.0.1";
 
 var api_root = 'http://' + host + ':' + port + '/foo';
@@ -22,7 +22,7 @@ var async = require('async');
 request(api_root + '/test', { json: true }, function (err, res, body) {
     if (err || body.message == undefined) {
         console.log("Error: Can't reach " + api_root+ '/test');
-        console.log("Note: You must have trits-foo-tangle service running, started with -t option on a standard port");
+        console.log("Note: You must have trits-foo-tangle service running, started with -t option at htttp://127.0.0.1:57241");
         console.log("Example: node index.js -t -p "+ host + ':' + port);
         process.exit(0)
     }

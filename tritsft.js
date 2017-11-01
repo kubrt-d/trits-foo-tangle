@@ -53,10 +53,16 @@ var argv = minimist(process.argv.slice(2), {
 
 if (argv.hasOwnProperty('help')) printHelp();
 
+var test_mode = argv.hasOwnProperty('test');
 
 // Defaults
 var port = 56241;
+var port_test = 57241;
 var host = "127.0.0.1";
+
+if (test_mode) {
+    port = port_test;
+}
 
 if (typeof argv.port === 'string'){
     var portArgs = argv.port.split(':');
@@ -66,9 +72,6 @@ if (typeof argv.port === 'string'){
 else if (argv.port){
     port = argv.port;
 }
-
-var test_mode = argv.hasOwnProperty('test');
-
 
 
 // CouchDB connection
